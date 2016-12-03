@@ -21,8 +21,6 @@ extern "C"
 
 	__declspec(dllexport) void __cdecl Init(const char* path, const HelperFunctions& helperFunctions)
 	{
-		WriteJump((void*)0x0040C115, ForceTrialMode);
-
 		int argc = 0;
 		LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
 
@@ -82,6 +80,11 @@ extern "C"
 
 				helperFunctions.RegisterStartPosition((Uint8)CurrentCharacter, position);
 			}
+		}
+
+		if (level_set || act_set)
+		{
+			WriteJump((void*)0x0040C115, ForceTrialMode);
 		}
 
 		LocalFree(argv);
