@@ -1,11 +1,5 @@
 #include "stdafx.h"
 
-#include <SADXModLoader.h>
-#include <shellapi.h> // for CommandLineToArgvW
-#include <string>
-#include <unordered_map>
-#include <algorithm>
-
 static const auto loc_40C318 = reinterpret_cast<const void*>(0x0040C318);
 
 __declspec(naked) void ForceTrialMode()
@@ -107,16 +101,16 @@ static void Obj_Icecap_r(ObjectMaster* o)
 extern "C"
 {
 	__declspec(dllexport) ModInfo SADXModInfo = {
-		ModLoaderVer,
-		nullptr,
-		nullptr,
-		0,
-		nullptr,
-		0,
-		nullptr,
-		0,
-		nullptr,
-		0
+		/* Version:      */ ModLoaderVer,
+		/* Init:         */ nullptr,
+		/* Patches:      */ nullptr,
+		/* PatchCount:   */ 0,
+		/* Jumps:        */ nullptr,
+		/* JumpCount:    */ 0,
+		/* Calls:        */ nullptr,
+		/* CallCount:    */ 0,
+		/* Pointers:     */ nullptr,
+		/* PointerCount: */ 0
 	};
 
 	__declspec(dllexport) void __cdecl Init(const char* path, const HelperFunctions& helperFunctions)
@@ -127,9 +121,9 @@ extern "C"
 		bool level_set = false;
 		bool act_set   = false;
 
-		// Prevents CurrentCharacter from being overwritten. There could be other side effects,
-		// but there are none that I've noticed thus far.
-		WriteData<5>((void*)0x00415007, 0x90i8);
+		// NOP. Prevents CurrentCharacter from being overwritten. There could be other side
+		// effects, but there are none that we've noticed thus far.
+		WriteData<5>(reinterpret_cast<void*>(0x00415007), 0x90u);
 
 		for (int i = 1; i < argc; i++)
 		{
@@ -180,13 +174,14 @@ extern "C"
 
 				if (CurrentLevel == LevelIDs_IceCap)
 				{
-					WriteData<2>(reinterpret_cast<void*>(0x004149EC), 0x90i8);
-					WriteData<2>(reinterpret_cast<void*>(0x0041497F), 0x90i8);
-					WriteData<2>(reinterpret_cast<void*>(0x00414A70), 0x90i8);
+					// NOPs to disable several checks for LevelIDs_IceCap which prevent
+					// correct player positioning and orienting.
+					WriteData<2>(reinterpret_cast<void*>(0x004149EC), 0x90u);
+					WriteData<2>(reinterpret_cast<void*>(0x0041497F), 0x90u);
+					WriteData<2>(reinterpret_cast<void*>(0x00414A70), 0x90u);
 
 					using LevelObjectFunc = void(__cdecl*)(ObjectMaster* this_);
-					auto* level_objects = reinterpret_cast<LevelObjectFunc*>(0x0090BF38);
-					level_objects[LevelIDs_IceCap] = Obj_Icecap_r;
+					LevelObjects[LevelIDs_IceCap] = Obj_Icecap_r;
 				}
 
 				const float x = std::stof(argv[++i]);
