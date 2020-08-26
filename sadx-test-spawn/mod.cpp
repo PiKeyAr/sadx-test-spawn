@@ -1,6 +1,12 @@
 #include "stdafx.h"
+#include "Data.h"
+#include "Trampoline.h"
 
 static const auto loc_40C318 = reinterpret_cast<const void*>(0x0040C318);
+
+static Trampoline* Title_Main_t = nullptr;
+static Trampoline* Chaos2_Main_t = nullptr;
+static Trampoline* Chaos6_Main_t = nullptr;
 
 __declspec(naked) void ForceTrialMode()
 {
@@ -88,6 +94,118 @@ static uint8_t parse_character_id(const std::wstring& str)
 	return static_cast<uint8_t>(std::stol(lowercase));
 }
 
+static int get_event_data(int event_id, char type)
+{
+	for (int i = 0; i < LengthOfArray(CutsceneList); i++)
+	{
+		if (CutsceneList[i].cutscene_id == event_id)
+		{
+			if (!type) return CutsceneList[i].level;
+			else if (type == 1) return CutsceneList[i].act;
+			else if (type == 2) return CutsceneList[i].character;
+			else return CutsceneList[i].scene_select;
+		}
+	}
+	return 0;
+}
+
+static int parse_event_id(const std::wstring& str, int type)
+{
+	Uint32 event_id;
+	std::wstring str2 = str;
+	std::transform(str2.begin(), str2.end(), str2.begin(), ::towlower);
+	return (Uint32)wcstol(str.c_str(), nullptr, 10);
+}
+
+static void set_event_flags(EventFlags a1)
+{
+	SeqRun();
+	if (FirstDemo.cutscene >= 240 && FirstDemo.cutscene <= 255) LastStoryFlag = 1;
+	else if (FirstDemo.cutscene == 355) LastStoryFlag = 1;
+	SeqSetPlayer(get_event_data(FirstDemo.cutscene, 2));
+	CurrentAdventureData_->seq = get_event_data(FirstDemo.cutscene, 3);
+	SeqSetSection(get_event_data(FirstDemo.cutscene, 3));
+	std::string SequenceName = CurrentSceneSelectData[get_event_data(FirstDemo.cutscene, 3)].Name;
+	PrintDebug("\n \n Loading sequence: %s\n", SequenceName.c_str());
+	if (FirstDemo.cutscene == 64 || FirstDemo.cutscene == 66) SetTimeOfDay_Evening();
+	if (FirstDemo.cutscene == 80 || FirstDemo.cutscene == 81) SetTimeOfDay_Night();
+	//Sand Hill haccs
+	WriteData<1>((char*)0x7B0DA0, 0xC3u); //Lost World 3 hacc
+	SetEventFlag((EventFlags)FLAG_SONIC_SS_ENTRANCE_CASINO); //Open Casino for Sonic
+	SetEventFlag((EventFlags)FLAG_MILES_SS_ENTRANCE_CASINO); //Open Casino for Tails
+	switch (FirstDemo.cutscene)
+	{
+	case 85:
+		WriteData<1>((char*)0x598040, 0xC3u);
+		WriteData<1>((char*)0x79E4C0, 0xC3u);
+		WriteData<5>((char*)0x597BF3, 0x90u);
+		break;
+	case 110:
+		SetEventFlag((EventFlags)FLAG_AMY_MR_ENTRANCE_FINALEGG); //Open Final Egg for Amy
+		break;
+	case 114:
+		SetEventFlag((EventFlags)FLAG_AMY_EC_SINK); //Egg Carrier sunk in Amy's outro
+		break;
+	case 146:
+		SetEventFlag((EventFlags)FLAG_KNUCKLES_MR_APPEAR_FINALEGG); //Open Final Egg for Knuckles
+		break;
+	case 149:
+		WriteData<5>((char*)0x5EF6D0, 0x90u); //Sky Deck music
+		WriteData<1>((char*)0x450370, 0xC3u); //Rings
+		WriteData<1>((char*)0x7A1AA0, 0xC3u); //Tikal hints
+		WriteData<1>((char*)0x476440, 0xC3u); //Radar
+		break;
+	case 179:
+		SetEventFlag((EventFlags)FLAG_E102_MR_FREEPASS); //Open Final Egg for useless machine
+		SetEventFlag((EventFlags)FLAG_E102_CLEAR_BEACH); //Open Final Egg for useless machine
+		SetEventFlag((EventFlags)FLAG_E102_CLEAR_FINALEGG); //Open Final Egg for useless machine
+		SetEventFlag((EventFlags)FLAG_E102_MR_APPEAR_FINALEGG); //Open Final Egg for useless machine
+		break;
+	case 184:
+		WriteData<1>((char*)0x61CA90, 0xC3u); //Kill Emerald Coast music
+		WriteData<1>((char*)0x4AD140, 0xC3u); //Kill Kikis
+		WriteData<1>((char*)0x4FA320, 0xC3u); //Kill OFrog
+		break;
+	case 192:
+		SetEventFlag((EventFlags)FLAG_E102_EC_BOOSTER); //Cutscenes where Gamma appears with the Jet Booster
+		break;
+	case 197:
+		SetEventFlag((EventFlags)FLAG_E102_MR_ENTRANCE_MOUNTAIN);
+		break;
+	case 212:
+		WriteData<1>((char*)0x61CA90, 0xC3u); //Kill Emerald Coast music
+		break;
+	case 218:
+		//WriteData<5>((char*)0x59A3F9, 0x90u); //Remove Froggy
+		break;
+	case 321:
+	case 322:
+		SetEventFlag((EventFlags)FLAG_E102_EC_SINK); //Egg Carrier sunk in Gamma's outro
+		break;
+	case 374:
+		SetEventFlag((EventFlags)FLAG_SONIC_SS_ICESTONE);
+		break;
+	case 375:
+		SetEventFlag((EventFlags)FLAG_MILES_SS_ICESTONE);
+		break;
+	case 376:
+		SetEventFlag((EventFlags)FLAG_BIG_SS_ICESTONE);
+		break;
+	case 377:
+		SetEventFlag((EventFlags)FLAG_SONIC_SS_CARD);
+		break;
+	case 378:
+		SetEventFlag((EventFlags)FLAG_SONIC_MR_WESTROCK);
+		break;
+	case 379:
+		SetEventFlag((EventFlags)FLAG_MILES_MR_WESTROCK);
+		break;
+	case 380:
+		SetEventFlag((EventFlags)FLAG_BIG_MR_WESTROCK);
+		break;
+	}
+}
+
 static void Obj_Icecap_r(ObjectMaster* o)
 {
 	if (o)
@@ -96,6 +214,49 @@ static void Obj_Icecap_r(ObjectMaster* o)
 		o->MainSub = Obj_Icecap;
 		Obj_Icecap(o);
 	}
+}
+
+static void Title_Main_r(ObjectMaster* a1)
+{
+	auto original = reinterpret_cast<decltype(Title_Main_r)*>(Title_Main_t->Target());
+	TitleNewWk* v1;
+	v1 = (TitleNewWk*)a1->UnknownB_ptr;
+	original(a1);
+	if (v1->Stat == 2)
+	{
+		v1->T = 0;
+		v1->Stat = 3;
+		*((_DWORD*)CurrentMenuObjectMaster_Maybe->UnknownB_ptr + 4) = 107;
+		StopMusicAndLoadNextMenu(0);
+	}
+}
+
+static void Chaos2_Main_r(ObjectMaster* a1)
+{
+	auto original = reinterpret_cast<decltype(Chaos2_Main_r)*>(Chaos2_Main_t->Target());
+	if (FirstDemo.cutscene == 136)
+	{
+		DeleteChildObjects(a1);
+		CheckThingButThenDeleteObject(a1);
+	}
+	original(a1);
+}
+
+static void Chaos6_Main_r(ObjectMaster* a1)
+{
+	auto original = reinterpret_cast<decltype(Chaos6_Main_r)*>(Chaos6_Main_t->Target());
+	int land_id = 24;
+	if (FirstDemo.cutscene == 29 || FirstDemo.cutscene == 155)
+	{
+		if (FirstDemo.cutscene == 155) land_id = 25;
+		for (int i = 0; i < LandTableArray[land_id]->COLCount; i++)
+		{
+			if (LandTableArray[land_id]->Col[i].Flags == 1 || LandTableArray[land_id]->Col[i].Flags == 0x20000001) LandTableArray[land_id]->Col[i].Flags = 0;
+		}
+		DeleteChildObjects(a1);
+		CheckThingButThenDeleteObject(a1);
+	}
+	original(a1);
 }
 
 extern "C"
@@ -116,10 +277,15 @@ extern "C"
 	__declspec(dllexport) void __cdecl Init(const char* path, const HelperFunctions& helperFunctions)
 	{
 		int argc = 0;
+		int event_id = 0;
 		LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-
-		bool level_set = false;
-		bool act_set   = false;
+		
+		StartPosition position;
+		bool level_set     = false;
+		bool act_set       = false;
+		bool position_set  = false;
+		bool character_set = false;
+		bool event_set     = false;
 
 		// NOP. Prevents CurrentCharacter from being overwritten. There could be other side
 		// effects, but there are none that we've noticed thus far.
@@ -148,9 +314,63 @@ extern "C"
 					MetalSonicFlag = 1;
 					character_id = 0;
 				}
-				
+
+				character_set = true;
 				CurrentCharacter = character_id;
 				PrintDebug("Loading character: %d\n", CurrentCharacter);
+			}
+			else if (!wcscmp(argv[i], L"--event") || !wcscmp(argv[i], L"-e"))
+			{
+				event_id = parse_event_id(argv[++i], 0);
+				switch (event_id)
+				{
+				case 36:
+					event_set = false;
+					level_set = true;
+					CurrentLevel = 22;
+					CurrentAct = 0;
+					CurrentCharacter = 0;
+					break;
+				case 49:
+					event_set = false;
+					level_set = true;
+					CurrentLevel = 1;
+					CurrentAct = 1;
+					CurrentCharacter = 2;
+					break;
+				case 72:
+					event_set = false;
+					level_set = true;
+					CurrentLevel = 5;
+					CurrentAct = 1;
+					CurrentCharacter = 2;
+					break;
+				case 135:
+					event_set = false;
+					level_set = true;
+					CurrentLevel = 16;
+					CurrentAct = 0;
+					CurrentCharacter = 3;
+					break;
+				default:
+					if (!level_set) CurrentLevel = get_event_data(event_id, 0);
+					if (!act_set) CurrentAct = get_event_data(event_id, 1);
+					if (!character_set) CurrentCharacter = get_event_data(event_id, 2);
+					if (get_event_data(event_id, 3) != -1) WriteCall((void*)0x42C893, set_event_flags);
+					PrintDebug("Loading event: %d in level %d act %d character %d\n", event_id, CurrentLevel, CurrentAct, CurrentCharacter);
+					for (int i = 0; i < 6; i++)
+					{
+						DemosArray[i].cutscene = event_id;
+						DemosArray[i].level = CurrentLevel;
+						DemosArray[i].act = CurrentAct;
+						DemosArray[i].character = CurrentCharacter;
+					}
+					event_set = true;
+					WriteData<1>((char*)0x510350, 0xC3u); //Kill title screen
+					WriteData<1>((int*)0x0040C10C, 11); //Force GameMode to 11
+					WriteData<1>((char*)0x457D10, 0xC3u); //Kill "Press Start"
+					break;
+				}
 			}
 			else if (!wcscmp(argv[i], L"--position") || !wcscmp(argv[i], L"-p"))
 			{
@@ -184,26 +404,46 @@ extern "C"
 					LevelObjects[LevelIDs_IceCap] = Obj_Icecap_r;
 				}
 
+				position_set = true;
 				const float x = std::stof(argv[++i]);
 				const float y = std::stof(argv[++i]);
 				const float z = std::stof(argv[++i]);
 
-				StartPosition position = {
+				position = {
 					CurrentLevel,
 					static_cast<int16_t>(CurrentAct),
 					// Position
 					{ x, y, z },
 					// YRot
 					0
-				};
+				};				
+			}
+			else if (!wcscmp(argv[i], L"--rotation") || !wcscmp(argv[i], L"-r"))
+			{
+				if (!position_set)
+				{
+					MessageBoxA(nullptr, "Insufficient arguments for parameter: --rotation.\n"
+						"Position must be specified before --rotation.",
+						"Insufficient arguments", MB_OK);
 
-				helperFunctions.RegisterStartPosition(static_cast<Uint8>(CurrentCharacter), position);
+					continue;
+				}
+				position.YRot = (Uint16)_wtof(argv[++i]);
 			}
 		}
 
 		if (level_set || act_set)
 		{
 			WriteJump(reinterpret_cast<void*>(0x0040C115), ForceTrialMode);
+		}
+		
+		if (position_set) helperFunctions.RegisterStartPosition(static_cast<Uint8>(CurrentCharacter), position);
+
+		if (event_set)
+		{
+			Title_Main_t  = new Trampoline(0x5101A0, 0x5101AA, Title_Main_r);
+			Chaos2_Main_t = new Trampoline(0x54DB90, 0x54DB96, Chaos2_Main_r);
+			Chaos6_Main_t = new Trampoline(0x559FC0, 0x559FC8, Chaos6_Main_r);
 		}
 
 		LocalFree(argv);
