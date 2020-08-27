@@ -1,6 +1,6 @@
 # Sonic Adventure DX Test Spawn mod
 
-This is a mod for Sonic Adventure DX PC (2004) that lets you load the game directly on any level/act and with any character.
+This is a fork of the original Test Spawn mod for Sonic Adventure DX PC (2004) that lets you load the game directly on any level/act and with any character.
 
 **Using the mod**
 
@@ -24,4 +24,4 @@ Examples:
 
 `sonic.exe -e 40` plays "Sonic vs Knuckles" cutscene
 
-A full cutscene list is available [here](https://github.com/sonicretro/sadx-test-spawn/blob/master/Cutscenes.md) (Credit to ItsEasyActually who made the original list of EV files in SA1).
+A full cutscene list is available [here](https://github.com/PiKeyAr/sadx-test-spawn/blob/master/Cutscenes.md) (Credit to ItsEasyActually who made the original list of EV files in SA1).
